@@ -116,6 +116,11 @@ const PushForm = ({ form }: { form: UseFormReturn<TemplateUpdateParams, any> }) 
             required />
         <TextInput.Field
             form={form}
+            name="data.topic"
+            label={t('topic')}
+            required />
+        <TextInput.Field
+            form={form}
             name="data.url"
             label={t('deeplink')} />
         <JsonField
