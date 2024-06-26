@@ -2,7 +2,7 @@ services:
   - type: web
     name: parcelvoy
     env: docker
-    repo: https://github.com/parcelvoy/platform.git
+    repo: https://github.com/KelindiCorp/parcelvoy.git
     dockerfilePath: ./docker/Dockerfile.render
     dockerContext: .
     autoDeploy: false

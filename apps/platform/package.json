@@ -1,7 +1,7 @@
 {
   "name": "@parcelvoy/platform",
   "version": "0.1.0",
-  "repository": "https://github.com/parcelvoy/platform",
+  "repository": "https://github.com/KelindiCorp/parcelvoy",
   "main": "build/index.js",
   "types": "build/index.d.ts",
   "dependencies": {
@@ -62,7 +62,7 @@
     "build": "tsc --build",
     "lint": "eslint --ext .ts --max-warnings 0 src/",
     "test": "jest --forceExit --runInBand --testTimeout 10000",
-    "docker:build": "docker buildx build -f ./Dockerfile -t ghcr.io/parcelvoy/api:latest -t ghcr.io/parcelvoy/api:$npm_config_tag ../../",
+    "docker:build": "docker buildx build -f ./Dockerfile -t ghcr.io/KelindiCorp/parcelvoy-api:latest -t ghcr.io/KelindiCorp/parcelvoy-api:$npm_config_tag ../../",
     "docker:build:push": "npm run docker:build -- --push",
     "migration:create": "node ./scripts/create-migration.mjs",
     "package:publish": "npm run build && npm version $npm_config_tag --no-git-tag-version && npm pack && npm publish --tag=latest --access public"
