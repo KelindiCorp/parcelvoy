@@ -5,7 +5,7 @@
     "apps/*"
   ],
   "devDependencies": {
-    "lerna": "~6.6.1"
+    "lerna": "~8.1.5"
   },
   "scripts": {
     "start": "lerna run start",
