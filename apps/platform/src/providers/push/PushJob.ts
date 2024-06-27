@@ -45,6 +45,7 @@ export default class PushJob extends Job {
             await finalizeSend(data, result)
 
         } catch (error: any) {
+            console.log("KELINDI", error)
             if (error instanceof PushError) {
 
                 // If the push is unable to send, find invalidated tokens
