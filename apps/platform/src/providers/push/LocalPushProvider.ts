@@ -98,14 +98,16 @@ export default class LocalPushProvider extends PushProvider {
 
     boot() {
         this.transport = new PushNotifications({
-            apn: this.apn,
             gcm: this.fcm, // Uses historical name GCM, we'll use modern name
         })
+
+        console.log(`KELINDI - LocalPushProvider: ${this.apn} ${this.fcm}`)
     }
 
     async send(push: Push): Promise<PushResponse> {
         // TODO: Need a better way of bubbling up errors
         const { tokens, title, body, custom } = push
+        console.log(`KELINDI - LocalPushProvider: ${tokens} ${title} ${body} ${custom}`)
         const response = await this.transport.send(typeof tokens === 'string' ? [tokens] : tokens, {
             title,
             topic: this.apn?.bundleId,
