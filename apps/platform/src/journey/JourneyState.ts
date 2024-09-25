@@ -9,6 +9,7 @@ import { getUserEventsForRules } from '../users/UserRepository'
 import { shallowEqual } from '../utilities'
 import { getEntranceSubsequentSteps, getJourneyStepChildren, getJourneySteps } from './JourneyRepository'
 import { JourneyGate, JourneyStep, JourneyStepChild, JourneyUserStep, journeyStepTypes } from './JourneyStep'
+import { logger } from '../config/logger'
 
 type JobOrJobFunc = Job | ((state: JourneyState) => Promise<Job | undefined>)
 
@@ -21,6 +22,7 @@ export class JourneyState {
      * @returns promise that resolves when processing ends
      */
     public static async resume(entrance: number | JourneyUserStep, user?: User) {
+        logger.info({ entrance: entrance }, 'KELINDI - JourneyState.resume' )
 
         // find entrance
         if (typeof entrance === 'number') {
@@ -35,6 +37,8 @@ export class JourneyState {
                 return
             }
         }
+
+        logger.info(entrance.toJSON(), 'KELINDI - JourneyState.resume - Entrance payload' )
 
         // Entrance has already ended
         if (entrance.ended_at) {
@@ -61,6 +65,8 @@ export class JourneyState {
             return
         }
 
+        logger.info({}, 'KELINDI - JourneyState.resume - START' )
+
         // Load all journey dependencies
         const [steps, children, userSteps] = await Promise.all([
             getJourneySteps(entrance.journey_id)
@@ -75,6 +81,7 @@ export class JourneyState {
 
         await releaseLock(key)
 
+        logger.info({}, 'KELINDI - JourneyState.resume - END' )
         return state
     }
 
@@ -99,9 +106,9 @@ export class JourneyState {
         let step = this.steps.find(s => s.id === userStep.step_id)
 
         while (step) {
+            logger.info({ user_step: userStep.toJSON(), step: step.toJSON() }, 'KELINDI - JourneyState.run - STEP' )
 
             if (userStep.step_id !== step.id) {
-
                 // create a placeholder for new step
                 this.userSteps.push(userStep = JourneyUserStep.fromJson({
                     journey_id: this.entrance.journey_id,
