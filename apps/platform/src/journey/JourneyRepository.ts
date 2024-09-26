@@ -6,6 +6,7 @@ import Journey, { JourneyParams, UpdateJourneyParams } from './Journey'
 import { JourneyStep, JourneyEntrance, JourneyUserStep, JourneyStepMap, toJourneyStepMap, JourneyStepChild } from './JourneyStep'
 import { createTagSubquery, getTags, setTags } from '../tags/TagService'
 import { User } from '../users/User'
+import { logger } from '../config/logger'
 
 export const pagedJourneys = async (params: PageParams, projectId: number) => {
     const result = await Journey.search(
@@ -130,6 +131,8 @@ export const setJourneyStepMap = async (journeyId: number, stepMap: JourneyStepM
                 next_scheduled_at = JourneyEntrance.fromJson({ data }).nextDate(now)
             }
             const fields = { data, data_key, name, next_scheduled_at, x, y }
+
+            logger.info(fields, 'KELINDI - setJourneyStepMap' )
             step.parseJson(step.id
                 ? await JourneyStep.updateAndFetch(step.id, fields, trx)
                 : await JourneyStep.insertAndFetch({

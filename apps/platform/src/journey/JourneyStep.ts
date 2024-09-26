@@ -122,10 +122,15 @@ export class JourneyEntrance extends JourneyStep {
     }
 
     nextDate(after = this.next_scheduled_at): Date | null {
+        logger.info({ after: after, trigger: this.trigger, schedule: this.schedule }, 'KELINDI - JourneyEntrance.nextDate - 1' )
 
         if (this.trigger !== 'schedule' || !after) return null
 
+        logger.info({ after: after, trigger: this.trigger, schedule: this.schedule }, 'KELINDI - JourneyEntrance.nextDate - 2' )
+
         if (this.schedule) {
+            logger.info({ after: after, trigger: this.trigger, schedule: this.schedule }, 'KELINDI - JourneyEntrance.nextDate - 3' )
+
             try {
                 const rule = RRule.fromString(this.schedule)
 
@@ -137,6 +142,7 @@ export class JourneyEntrance extends JourneyStep {
                     return rule.options.dtstart
                 }
 
+                logger.info({ after: after, trigger: this.trigger, schedule: this.schedule }, 'KELINDI - JourneyEntrance.nextDate - 4' )
                 return RRule.fromString(this.schedule).after(after)
             } catch (err) {
                 App.main.error.notify(err as Error, {
@@ -144,6 +150,8 @@ export class JourneyEntrance extends JourneyStep {
                 })
             }
         }
+
+        logger.info({ after: after, trigger: this.trigger, schedule: this.schedule }, 'KELINDI - JourneyEntrance.nextDate - 5' )
         return null
     }
 
