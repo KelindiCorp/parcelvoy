@@ -142,8 +142,9 @@ export class JourneyEntrance extends JourneyStep {
                     return rule.options.dtstart
                 }
 
-                logger.info({ after: after, trigger: this.trigger, schedule: this.schedule }, 'KELINDI - JourneyEntrance.nextDate - 4' )
-                return RRule.fromString(this.schedule).after(after)
+                let rule1 = RRule.fromString(this.schedule).after(after)
+                logger.info({ after: after, trigger: this.trigger, schedule: this.schedule }, `KELINDI - JourneyEntrance.nextDate - 4 - ${rule1} - ${this.schedule} - ${after}` )
+                return rule1
             } catch (err) {
                 App.main.error.notify(err as Error, {
                     entranceId: this.id,

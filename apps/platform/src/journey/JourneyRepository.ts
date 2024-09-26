@@ -132,7 +132,7 @@ export const setJourneyStepMap = async (journeyId: number, stepMap: JourneyStepM
             }
             const fields = { data, data_key, name, next_scheduled_at, x, y }
 
-            logger.info(fields, 'KELINDI - setJourneyStepMap' )
+            logger.info(fields, `KELINDI - setJourneyStepMap ${next_scheduled_at}` )
             step.parseJson(step.id
                 ? await JourneyStep.updateAndFetch(step.id, fields, trx)
                 : await JourneyStep.insertAndFetch({
