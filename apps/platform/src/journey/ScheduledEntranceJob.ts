@@ -5,6 +5,7 @@ import App from '../app'
 import JourneyProcessJob from './JourneyProcessJob'
 import Journey from './Journey'
 import List from '../lists/List'
+import { logger } from '../config/logger'
 
 interface ScheduledEntranceTrigger {
     entranceId: number
@@ -19,6 +20,7 @@ export default class ScheduledEntranceJob extends Job {
     }
 
     static async handler({ entranceId }: ScheduledEntranceTrigger) {
+        logger.info({ entrance_id: entranceId }, 'KELINDI - ScheduledEntranceTrigger.handler' )
 
         const entrance = await JourneyEntrance.find(entranceId)
 

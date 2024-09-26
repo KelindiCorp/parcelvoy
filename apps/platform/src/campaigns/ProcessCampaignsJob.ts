@@ -2,6 +2,7 @@ import { Job } from '../queue'
 import Campaign from './Campaign'
 import CampaignGenerateListJob from './CampaignGenerateListJob'
 import CampaignEnqueueSendsJob from './CampaignEnqueueSendsJob'
+import { logger } from '../config/logger'
 
 export default class ProcessCampaignsJob extends Job {
     static $name = 'process_campaigns_job'
@@ -14,6 +15,7 @@ export default class ProcessCampaignsJob extends Job {
             .whereNull('deleted_at')
             .where('type', 'blast')
         for (const campaign of campaigns) {
+            logger.info(campaign.toJSON(), 'KELINDI - ProcessCampaignsJob.process' )
 
             // When pending we need to regenerate send list
             if (campaign.state === 'pending') {

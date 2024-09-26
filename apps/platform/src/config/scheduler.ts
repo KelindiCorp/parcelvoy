@@ -10,12 +10,14 @@ import UserSchemaSyncJob from '../schema/UserSchemaSyncJob'
 import UpdateJourneysJob from '../journey/UpdateJourneysJob'
 import ScheduledEntranceOrchestratorJob from '../journey/ScheduledEntranceOrchestratorJob'
 import { acquireLock } from '../core/Lock'
+import { logger } from '../config/logger'
 
 export default (app: App) => {
     const scheduler = new Scheduler(app)
     scheduler.schedule({
         rule: '* * * * *',
         callback: () => {
+            logger.info({}, 'KELINDI - Scheduler.campaigns' )
             JourneyDelayJob.enqueueActive(app)
             app.queue.enqueue(ProcessCampaignsJob.from())
             app.queue.enqueue(CampaignStateJob.from())
@@ -25,13 +27,16 @@ export default (app: App) => {
     scheduler.schedule({
         rule: '*/5 * * * *',
         callback: () => {
+            logger.info({}, 'KELINDI - Scheduler.processList' )
             app.queue.enqueue(ProcessListsJob.from())
         },
         lockLength: 360,
     })
     scheduler.schedule({
-        rule: '0 * * * *',
+        rule: '*/5 * * * *',
         callback: () => {
+            logger.info({}, 'KELINDI - Scheduler.orchestrator' )
+
             cleanupExpiredRevokedTokens(subDays(new Date(), 1))
             app.queue.enqueue(UserSchemaSyncJob.from({
                 delta: subHours(new Date(), 1),

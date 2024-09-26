@@ -2,12 +2,14 @@ import App from '../app'
 import { Job } from '../queue'
 import { JourneyEntrance, JourneyStep } from './JourneyStep'
 import ScheduledEntranceJob from './ScheduledEntranceJob'
+import { logger} from '../config/logger'
 
 export default class ScheduledEntranceOrchestratorJob extends Job {
 
     static $name = 'scheduled_entrance_orchestration_job'
 
     static async handler() {
+        logger.info({}, 'KELINDI - ScheduledEntranceOrchestratorJob.handler' )
 
         // look up all scheduler entrances
         const entrances = await JourneyEntrance.all(q => q
@@ -29,6 +31,12 @@ export default class ScheduledEntranceOrchestratorJob extends Job {
             await JourneyStep.update(q => q.where('id', entrance.id), {
                 next_scheduled_at: entrance.nextDate(),
             })
+
+            logger.info(
+              {
+                list_id: entrance.list_id,
+                next_scheduled_at: entrance.next_scheduled_at
+              }, 'KELINDI - ScheduledEntranceOrchestratorJob.handler - step' )
 
             if (entrance.list_id) {
                 jobs.push(ScheduledEntranceJob.from({
