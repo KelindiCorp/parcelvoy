@@ -43,6 +43,7 @@ export default class Queue {
     }
 
     async enqueue(job: Job | EncodedJob): Promise<void> {
+        logger.info(job instanceof Job ? job.toJSON() : job, 'KELINDI - Queue.enqueue' )
         logger.info(job instanceof Job ? job.toJSON() : job, 'queue:job:enqueued')
         await this.provider.enqueue(job)
 
@@ -71,6 +72,7 @@ export default class Queue {
     }
 
     async started(job: EncodedJob) {
+        logger.info(job, 'KELINDI - Queue.started' )
         logger.info(job, 'queue:job:started')
     }
 
@@ -81,6 +83,7 @@ export default class Queue {
     }
 
     async completed(job: EncodedJob) {
+        logger.info(job, 'KELINDI - Queue.completed' )
         logger.info(job, 'queue:job:completed')
     }
 
