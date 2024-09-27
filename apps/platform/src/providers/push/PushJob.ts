@@ -9,6 +9,7 @@ import { finalizeSend, loadSendJob, messageLock, prepareSend } from '../MessageT
 import { loadPushChannel } from '.'
 import App from '../../app'
 import { releaseLock } from '../../core/Lock'
+import { logger } from '../../config/logger'
 
 export default class PushJob extends Job {
     static $name = 'push'
@@ -35,6 +36,8 @@ export default class PushJob extends Job {
                 })
                 return
             }
+
+            logger.info({}, `KELINDI - PushJob.handler - ${data}` )
 
             // Check current send rate and if the send is locked
             const isReady = await prepareSend(channel, data, raw)

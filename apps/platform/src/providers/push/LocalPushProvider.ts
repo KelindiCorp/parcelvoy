@@ -4,6 +4,7 @@ import { Push, PushResponse } from './Push'
 import PushError from './PushError'
 import { ExternalProviderParams, ProviderControllers, ProviderSchema } from '../Provider'
 import { createController } from '../ProviderService'
+import { logger } from '../../config/logger'
 
 interface APNParams {
     token: {
@@ -136,6 +137,8 @@ export default class LocalPushProvider extends PushProvider {
     async send(push: Push): Promise<PushResponse> {
         // TODO: Need a better way of bubbling up errors
         const { tokens, title, body, custom } = push
+        logger.info({}, `KELINDI - LocalPushProvider.send - ${push}` )
+
         const response = await this.transport.send(typeof tokens === 'string' ? [tokens] : tokens, {
             title,
             topic: this.apn?.bundleId,
