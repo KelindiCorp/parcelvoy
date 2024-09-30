@@ -14,6 +14,7 @@ import { getUserFromEmail, getUserFromPhone } from '../users/UserRepository'
 import { loadWebhookChannel } from '../providers/webhook'
 import Project from '../projects/Project'
 import { getProject } from '../projects/ProjectService'
+import { paramsToEncodedLink } from './LinkService'
 
 export const pagedTemplates = async (params: PageParams, projectId: number) => {
     return await Template.search(
@@ -115,6 +116,14 @@ export const sendProof = async (template: TemplateType, variables: Variables, re
         await channel?.send(template, variables)
 
     } else if (template.type === 'push') {
+        variables.url = paramsToEncodedLink(
+          {
+            userId: user.id,
+            campaignId: campaign.id,
+            path: 'c',
+            redirect: template.url,
+          }
+        )
         const channel = await loadPushChannel(campaign.provider_id, project.id)
         if (!user.id) throw new RequestError('Unable to find a user matching the criteria.')
         await channel?.send(template, variables)

@@ -24,6 +24,7 @@ export interface Variables {
     event?: Record<string, any>
     journey?: Record<string, any>
     project: Project
+    url?: string
 }
 
 export interface TrackingParams {
