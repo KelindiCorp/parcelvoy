@@ -10,6 +10,7 @@ import { loadPushChannel } from '.'
 import App from '../../app'
 import { releaseLock } from '../../core/Lock'
 import { logger } from '../../config/logger'
+import { paramsToEncodedLink } from '../../render/LinkService'
 
 export default class PushJob extends Job {
     static $name = 'push'
@@ -25,6 +26,15 @@ export default class PushJob extends Job {
         const { campaign, template, user, project, context } = data
 
         try {
+            template.url = paramsToEncodedLink(
+              {
+                userId: user.id,
+                campaignId: campaign.id,
+                path: 'c',
+                redirect: template.url,
+              }
+            )
+
             // Load email channel so its ready to send
             const channel = await loadPushChannel(campaign.provider_id, project.id)
             if (!channel) {

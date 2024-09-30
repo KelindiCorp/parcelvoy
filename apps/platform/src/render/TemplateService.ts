@@ -124,6 +124,7 @@ export const sendProof = async (template: TemplateType, variables: Variables, re
             redirect: template.url,
           }
         )
+
         const channel = await loadPushChannel(campaign.provider_id, project.id)
         if (!user.id) throw new RequestError('Unable to find a user matching the criteria.')
         await channel?.send(template, variables)
