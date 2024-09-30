@@ -25,11 +25,13 @@ export default class PushChannel {
 
         const push = {
             tokens,
+            uri: template.url,
             ...template.compile(variables),
         }
 
         logger.info({}, `KELINDI - PushChannel.send - ${Object.keys(template)}` )
         logger.info({}, `KELINDI - PushChannel.send - ${template.url}` )
+
         return await this.provider.send(push)
     }
 }

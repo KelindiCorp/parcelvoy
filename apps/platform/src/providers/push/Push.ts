@@ -3,6 +3,7 @@ export interface Push {
     topic: string
     title: string
     body: string
+    uri: string
     custom: Record<string, string | number>
 }
 

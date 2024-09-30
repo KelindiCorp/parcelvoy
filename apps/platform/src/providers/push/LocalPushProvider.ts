@@ -136,14 +136,17 @@ export default class LocalPushProvider extends PushProvider {
 
     async send(push: Push): Promise<PushResponse> {
         // TODO: Need a better way of bubbling up errors
-        const { tokens, title, body, custom } = push
+        const { tokens, title, body, custom, uri } = push
+        const custom2 = Object.assign(custom, { uri, data: { uri } } )
+
         logger.info({}, `KELINDI - LocalPushProvider.send - ${push}` )
+        logger.info({}, `KELINDI - LocalPushProvider.send - ${Object.values(custom2)}` )
 
         const response = await this.transport.send(typeof tokens === 'string' ? [tokens] : tokens, {
             title,
             topic: this.apn?.bundleId,
             body,
-            custom,
+            custom: custom2,
         })
 
         const invalidTokens = []
