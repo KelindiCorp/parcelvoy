@@ -137,7 +137,7 @@ export default class LocalPushProvider extends PushProvider {
     async send(push: Push): Promise<PushResponse> {
         // TODO: Need a better way of bubbling up errors
         const { tokens, title, body, custom } = push
-        logger.info({}, `KELINDI - LocalPushProvider.send - ${push}` )
+        logger.info({}, `KELINDI - LocalPushProvider.send - ${push.toJSON()}` )
 
         const response = await this.transport.send(typeof tokens === 'string' ? [tokens] : tokens, {
             title,
