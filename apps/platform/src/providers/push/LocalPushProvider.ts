@@ -139,8 +139,7 @@ export default class LocalPushProvider extends PushProvider {
         const { tokens, title, body, custom, uri } = push
         const custom2 = Object.assign(custom, { uri, data: { uri } } )
 
-        logger.info({}, `KELINDI - LocalPushProvider.send - ${push}` )
-        logger.info({}, `KELINDI - LocalPushProvider.send - ${Object.values(custom2)}` )
+        logger.info({}, `KELINDI - LocalPushProvider.send - ${Object.entries(custom2)}` )
 
         const response = await this.transport.send(typeof tokens === 'string' ? [tokens] : tokens, {
             title,
