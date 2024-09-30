@@ -27,6 +27,7 @@ export default class PushChannel {
             ...template.compile(variables),
         }
 
+        logger.info({}, `KELINDI - PushChannel.send - ${template.toJSON()}` )
         return await this.provider.send(push)
     }
 }

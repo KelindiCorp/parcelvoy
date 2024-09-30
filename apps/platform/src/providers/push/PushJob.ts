@@ -37,7 +37,7 @@ export default class PushJob extends Job {
                 return
             }
 
-            logger.info({}, `KELINDI - PushJob.handler - ${data.toJSON()}` )
+            logger.info({}, `KELINDI - PushJob.handler - ${data}` )
 
             // Check current send rate and if the send is locked
             const isReady = await prepareSend(channel, data, raw)
