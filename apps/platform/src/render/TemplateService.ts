@@ -116,7 +116,7 @@ export const sendProof = async (template: TemplateType, variables: Variables, re
         await channel?.send(template, variables)
 
     } else if (template.type === 'push') {
-        variables.url = paramsToEncodedLink(
+        template.url = paramsToEncodedLink(
           {
             userId: user.id,
             campaignId: campaign.id,
