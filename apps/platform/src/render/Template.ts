@@ -201,7 +201,7 @@ export class PushTemplate extends Template {
         return (this.constructor as any).toJson(this)
     }
 
-    static toJson<T extends typeof Model>(this: T, model: any) {
+    static toJson<T extends typeof PushTemplate>(this: T, model: any) {
         const json: any = {}
         const keys = [...Object.keys(model), ...this.virtualAttributes]
         for (const key of keys) {
