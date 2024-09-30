@@ -2,6 +2,7 @@ import { PushTemplate } from '../../render/Template'
 import { Variables } from '../../render'
 import { PushProvider } from './PushProvider'
 import { PushResponse } from './Push'
+import { logger } from "../../config/logger"
 
 export default class PushChannel {
     readonly provider: PushProvider
@@ -27,7 +28,8 @@ export default class PushChannel {
             ...template.compile(variables),
         }
 
-        logger.info({}, `KELINDI - PushChannel.send - ${template.toJSON()}` )
+        logger.info({}, `KELINDI - PushChannel.send - ${Object.keys(template)}` )
+        logger.info({}, `KELINDI - PushChannel.send - ${template.url}` )
         return await this.provider.send(push)
     }
 }
