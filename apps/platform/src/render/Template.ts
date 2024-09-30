@@ -197,6 +197,19 @@ export class PushTemplate extends Template {
         }
     }
 
+    toJSON() {
+        return (this.constructor as any).toJson(this)
+    }
+
+    static toJson<T extends typeof Model>(this: T, model: any) {
+        const json: any = {}
+        const keys = [...Object.keys(model), ...this.virtualAttributes]
+        for (const key of keys) {
+            json[snakeCase(key)] = model[key]
+        }
+        return json
+    }
+
     validate() {
         return isValid({
             type: 'object',
