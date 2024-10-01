@@ -26,14 +26,14 @@ export default class PushJob extends Job {
         const { campaign, template, user, project, context } = data
 
         try {
-            // template.url = paramsToEncodedLink(
-            //   {
-            //     userId: user.id,
-            //     campaignId: campaign.id,
-            //     path: 'c',
-            //     redirect: template.url,
-            //   }
-            // )
+            template.url = paramsToEncodedLink(
+              {
+                userId: user.id,
+                campaignId: campaign.id,
+                path: 'c',
+                redirect: template.url,
+              }
+            )
 
             // Load email channel so its ready to send
             const channel = await loadPushChannel(campaign.provider_id, project.id)
