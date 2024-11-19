@@ -57,6 +57,8 @@ export const initProvider = (config?: AuthProviderConfig): AuthProvider => {
 
 export const authMethods = async (organization?: Organization): Promise<AuthMethod[]> => {
 
+    if (!App.main.env.config.multiOrg) return mapMethods(App.main.env.auth)
+
     // If we know the org, don't require any extra steps like
     // providing email since we know where to route you. Otherwise
     // we need context to properly fetch SSO and such.
@@ -82,7 +84,7 @@ export const validateAuth = async (ctx: Context): Promise<void> => {
 const loadProvider = async (ctx: Context): Promise<AuthProvider> => {
     const driver = ctx.params.driver as AuthProviderName
     const organization = ctx.state.organization
-    if (organization) {
+    if (organization && App.main.env.config.multiOrg) {
         return initProvider(organization.auth)
     }
 

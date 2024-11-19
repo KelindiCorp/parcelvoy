@@ -1,12 +1,10 @@
-import App from '../../app'
-import EmailJob from '../../providers/email/EmailJob'
 import { RequestError } from '../../core/errors'
 import { addUserToList, createList } from '../../lists/ListService'
-import { createSubscription, subscribe } from '../../subscriptions/SubscriptionService'
+import { createSubscription, subscribe, subscribeAll } from '../../subscriptions/SubscriptionService'
 import { User } from '../../users/User'
 import { uuid } from '../../utilities'
 import Campaign, { CampaignSend, SentCampaign } from '../Campaign'
-import { allCampaigns, createCampaign, getCampaign, sendCampaign, generateSendList, estimatedSendSize } from '../CampaignService'
+import { allCampaigns, createCampaign, getCampaign, generateSendList, estimatedSendSize, updateCampaignSendEnrollment } from '../CampaignService'
 import { createProvider } from '../../providers/ProviderRepository'
 import { createTestProject } from '../../projects/__tests__/ProjectTestHelpers'
 import ListStatsJob from '../../lists/ListStatsJob'
@@ -155,20 +153,6 @@ describe('CampaignService', () => {
         })
     })
 
-    describe('sendCampaign', () => {
-        test('enqueue an email job', async () => {
-
-            const campaign = await createTestCampaign()
-            const user = await createUser(campaign.project_id)
-
-            const spy = jest.spyOn(App.main.queue, 'enqueue')
-            await sendCampaign({ campaign, user })
-
-            expect(spy).toHaveBeenCalledTimes(1)
-            expect(spy.mock.calls[0][0]).toBeInstanceOf(EmailJob)
-        })
-    })
-
     describe('sendList', () => {
         test('enqueue sends for a list of people', async () => {
             const params = await createCampaignDependencies()
@@ -272,6 +256,77 @@ describe('CampaignService', () => {
 
             const sendSize = await estimatedSendSize(campaign)
             expect(sendSize).toEqual(40)
+        })
+    })
+
+    describe('updateCampaignSendEnrollment', () => {
+        test('join a user to a scheduled campaign', async () => {
+            const params = await createCampaignDependencies()
+            const list = await createList(params.project_id, {
+                name: uuid(),
+                type: 'static',
+                is_visible: true,
+            })
+            const campaign = await createTestCampaign(params, {
+                list_ids: [list.id],
+            }) as SentCampaign
+            await Campaign.updateAndFetch(campaign.id, { state: 'scheduled' })
+
+            const user = await createUser(campaign.project_id)
+            await subscribeAll(user)
+            await addUserToList(user, list)
+
+            await updateCampaignSendEnrollment(user)
+
+            const updated = await CampaignSend.first(qb => qb.where('campaign_id', campaign.id).where('user_id', user.id))
+
+            expect(updated).not.toBeUndefined()
+        })
+
+        test('do not join a user to a draft campaign', async () => {
+            const params = await createCampaignDependencies()
+            const list = await createList(params.project_id, {
+                name: uuid(),
+                type: 'static',
+                is_visible: true,
+            })
+            const campaign = await createTestCampaign(params, {
+                list_ids: [list.id],
+            }) as SentCampaign
+
+            const user = await createUser(campaign.project_id)
+            await subscribeAll(user)
+            await addUserToList(user, list)
+
+            await updateCampaignSendEnrollment(user)
+
+            const updated = await CampaignSend.first(qb => qb.where('campaign_id', campaign.id).where('user_id', user.id))
+
+            expect(updated).toBeUndefined()
+        })
+
+        test('remove a user who no longer matches list', async () => {
+            const params = await createCampaignDependencies()
+            const list = await createList(params.project_id, {
+                name: uuid(),
+                type: 'static',
+                is_visible: true,
+            })
+            const campaign = await createTestCampaign(params, {
+                list_ids: [list.id],
+            }) as SentCampaign
+            await Campaign.updateAndFetch(campaign.id, { state: 'scheduled' })
+
+            const user = await createUser(campaign.project_id)
+            await subscribeAll(user)
+
+            await CampaignSend.insert({ campaign_id: campaign.id, user_id: user.id, state: 'pending' })
+
+            await updateCampaignSendEnrollment(user)
+
+            const updated = await CampaignSend.first(qb => qb.where('campaign_id', campaign.id).where('user_id', user.id))
+
+            expect(updated).toBeUndefined()
         })
     })
 })

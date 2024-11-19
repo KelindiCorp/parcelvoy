@@ -1,6 +1,5 @@
 import { EncodedJob, Job } from '../../queue'
 import { PushTemplate } from '../../render/Template'
-import { createEvent } from '../../users/UserEventRepository'
 import { MessageTrigger } from '../MessageTrigger'
 import PushError from './PushError'
 import { disableNotifications } from '../../users/UserRepository'
@@ -10,6 +9,7 @@ import { loadPushChannel } from '.'
 import App from '../../app'
 import { releaseLock } from '../../core/Lock'
 import { paramsToEncodedLink } from '../../render/LinkService'
+import { EventPostJob } from '../../jobs'
 
 export default class PushJob extends Job {
     static $name = 'push'
@@ -70,13 +70,18 @@ export default class PushJob extends Job {
                 })
 
                 // Create an event about the disabling
-                await createEvent(user, {
-                    name: 'notifications_disabled',
-                    data: {
-                        ...context,
-                        tokens: error.invalidTokens,
+                await EventPostJob.from({
+                    project_id: project.id,
+                    user_id: user.id,
+                    event: {
+                        name: 'notifications_disabled',
+                        external_id: user.external_id,
+                        data: {
+                            ...context,
+                            tokens: error.invalidTokens,
+                        },
                     },
-                })
+                }).queue()
             } else {
                 App.main.error.notify(error)
             }

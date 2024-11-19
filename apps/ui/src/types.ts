@@ -1,5 +1,6 @@
 import { ComponentType, Dispatch, Key, ReactNode, SetStateAction } from 'react'
 import { FieldPath, FieldValues, UseFormReturn } from 'react-hook-form'
+import { Node } from 'reactflow'
 
 export type Class<T> = new () => T
 
@@ -171,7 +172,8 @@ export interface Project {
     timezone: string
     text_opt_out_message?: string
     text_help_message?: string
-    link_wrap: boolean
+    link_wrap_email: boolean
+    link_wrap_push: boolean
     created_at: string
     updated_at: string
     deleted_at?: string
@@ -311,12 +313,12 @@ export interface JourneyStepTypeEdgeProps<T, E> extends ControlledProps<E> {
 export interface JourneyStepType<T = any, E = any> {
     name: string
     icon: ReactNode
-    category: 'entrance' | 'delay' | 'flow' | 'action'
+    category: 'entrance' | 'delay' | 'flow' | 'action' | 'exit'
     description: string
     Describe?: ComponentType<JourneyStepTypeEditProps<T>>
     newData?: () => Promise<T>
     newEdgeData?: () => Promise<E>
-    Edit?: ComponentType<JourneyStepTypeEditProps<T>>
+    Edit?: ComponentType<JourneyStepTypeEditProps<T> & { nodes: Node[] }>
     EditEdge?: ComponentType<JourneyStepTypeEdgeProps<T, E>>
     sources?: string[]
     multiChildSources?: boolean
