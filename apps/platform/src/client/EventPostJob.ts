@@ -54,6 +54,7 @@ export default class EventPostJob extends Job {
         await updateUsersLists(user, results, dbEvent)
 
         // Enter any journey entrances associated with this event
+        console.log('Entering journeys for event', dbEvent)
         await enterJourneysFromEvent(dbEvent, user)
 
         return { user, event: dbEvent }

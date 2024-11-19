@@ -35,9 +35,13 @@ export const enterJourneysFromEvent = async (event: UserEvent, user?: User) => {
         events: [event!.flatten()],
     }
 
+    console.log('input', input)
+
     const entranceIds: number[] = []
     for (const entrance of entrances) {
-
+        console.log('Checking entrance', entrance.id)
+        console.log('Entrance multiple', entrance.multiple)
+        console.log('Entrance concurrent', entrance.concurrent)
         // If a rule is specified, check it before pushing user into journey
         if (entrance.rule) {
             const rule: RuleTree = {

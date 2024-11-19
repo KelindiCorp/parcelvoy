@@ -435,6 +435,7 @@ export class JourneyLink extends JourneyStep {
         }
 
         // create an entrance in this/another journey, delay job will pick it up
+        console.log('Creating entrance for user', state.user.id, 'in journey', step.journey_id, ' ', state.user.id, ' ', delay_until)
         await JourneyUserStep.insert({
             journey_id: step.journey_id,
             step_id: step.id,
