@@ -30,7 +30,7 @@ export default (app: App) => {
         lockLength: 360,
     })
     scheduler.schedule({
-        rule: '0 * * * *',
+        rule: '*/5 * * * *',
         callback: () => {
             cleanupExpiredRevokedTokens(subDays(new Date(), 1))
             app.queue.enqueue(UserSchemaSyncJob.from({
