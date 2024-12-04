@@ -191,13 +191,13 @@ export class PushTemplate extends Template {
             return body
         }, {} as Record<string, any>)
 
-        const compiledUrl = this.compileUrl(variables)
+        const url = this.compileUrl(variables)
 
         return {
             topic: this.topic,
             title: Render(this.title, variables),
             body: Render(this.body, variables),
-            custom: { ...custom, compiledUrl },
+            custom: { ...custom, url },
         }
     }
 
