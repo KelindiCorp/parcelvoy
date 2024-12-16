@@ -1,21 +1,29 @@
 import { UserEvent } from '../users/UserEvent'
 import { User } from '../users/User'
 import { check } from '../rules/RuleEngine'
-import List, { DynamicList, ListCreateParams, ListUpdateParams, UserList } from './List'
+import List, { DynamicList, ListCreateParams, ListProgress, ListUpdateParams, UserList } from './List'
 import Rule, { RuleEvaluation, RuleTree } from '../rules/Rule'
 import { PageParams } from '../core/searchParams'
 import ListPopulateJob from './ListPopulateJob'
 import { importUsers } from '../users/UserImport'
 import { FileStream } from '../storage/FileStream'
 import { createTagSubquery, getTags, setTags } from '../tags/TagService'
-import { Chunker } from '../utilities'
+import { Chunker, pick } from '../utilities'
 import { getUserEventsForRules } from '../users/UserRepository'
-import { DateRuleTypes, RuleResults, RuleWithEvaluationResult, checkRules, decompileRule, fetchAndCompileRule, getDateRuleType, mergeInsertRules, splitRuleTree } from '../rules/RuleService'
+import { DateRuleTypes, RuleResults, RuleWithEvaluationResult, checkRules, decompileRule, duplicateRule, fetchAndCompileRule, getDateRuleType, mergeInsertRules, splitRuleTree } from '../rules/RuleService'
 import { updateCampaignSendEnrollment } from '../campaigns/CampaignService'
-import { cacheDecr, cacheIncr } from '../config/redis'
+import { cacheDecr, cacheDel, cacheGet, cacheIncr, cacheSet } from '../config/redis'
 import App from '../app'
 import { RequestError } from '../core/errors'
 import RuleError from '../rules/RuleError'
+import ListEvaluateUserJob from './ListEvaluateUserJob'
+import ListStatsJob from './ListStatsJob'
+
+export const CacheKeys = {
+    memberCount: (list: List) => `list:${list.id}:${list.version}:count`,
+    populationProgress: (list: List) => `list:${list.id}:${list.version}:progress`,
+    populationTotal: (list: Pick<List, 'id' | 'version'>) => `list:${list.id}:${list.version}:total`,
+}
 
 export const pagedLists = async (params: PageParams, projectId: number) => {
     const result = await List.search(
@@ -61,17 +69,22 @@ export const getList = async (id: number, projectId: number) => {
     if (list) {
         list.tags = await getTags(List.tableName, [list.id]).then(m => m.get(list.id))
         if (list.rule_id) list.rule = await fetchAndCompileRule(list.rule_id)
+        if (list.state === 'loading') {
+            list.progress = await populationProgress(list)
+        }
     }
     return list
 }
 
 export const getListUsers = async (id: number, params: PageParams, projectId: number) => {
-    return await User.search(
+    return await UserList.search(
         { ...params, fields: ['email', 'phone'], mode: 'exact' },
-        b => b.rightJoin('user_list', 'user_list.user_id', 'users.id')
+        b => b.leftJoin('users', 'user_list.user_id', 'users.id')
             .where('project_id', projectId)
             .where('list_id', id)
-            .select('users.*', 'user_list.created_at'),
+            .select('users.*', 'user_list.created_at', 'user_list.id', 'user_list.user_id'),
+        App.main.db,
+        (item) => ({ ...item, id: item.user_id }) as any,
     )
 }
 
@@ -170,7 +183,10 @@ export const updateList = async (list: List, { tags, rule, published, ...params 
         }
 
         // Start repopulation of the list if state is published
-        if (list.state !== 'draft') await ListPopulateJob.from(list.id, list.project_id).queue()
+        if (list.state !== 'draft') {
+            await updateListState(list.id, { state: 'loading' })
+            await ListPopulateJob.from(list.id, list.project_id).queue()
+        }
     }
 
     return await getList(list.id, list.project_id)
@@ -185,8 +201,6 @@ export const deleteList = async (id: number, projectId: number) => {
     return await List.deleteById(id, qb => qb.where('project_id', projectId))
 }
 
-export const countKey = (list: List) => `list:${list.id}:${list.version}:count`
-
 export const addUserToList = async (user: User | number, list: List, event?: UserEvent) => {
     const userId = user instanceof User ? user.id : user
     const resp = await UserList.query()
@@ -198,7 +212,7 @@ export const addUserToList = async (user: User | number, list: List, event?: Use
         })
         .onConflict(['user_id', 'list_id'])
         .ignore()
-    if (resp?.[0]) await cacheIncr(App.main.redis, countKey(list))
+    if (resp?.[0]) await cacheIncr(App.main.redis, CacheKeys.memberCount(list))
     return resp
 }
 
@@ -208,7 +222,7 @@ export const removeUserFromList = async (user: User | number, list: List) => {
         qb.where('user_id', userId)
             .where('list_id', list.id),
     )
-    if (count) await cacheDecr(App.main.redis, countKey(list))
+    if (count) await cacheDecr(App.main.redis, CacheKeys.memberCount(list))
     return count
 }
 
@@ -283,59 +297,102 @@ const scrollUserListForEvaluation = async ({
     }
 }
 
+export const evaluateUserList = async (user: User, list: DynamicList) => {
+    const rule = await fetchAndCompileRule(list.rule_id) as RuleTree
+    const { eventRules, userRules } = splitRuleTree(rule)
+
+    const parts: RuleWithEvaluationResult[] = []
+    const events = await getUserEventsForRules([user.id], eventRules)
+
+    for (const rule of eventRules) {
+        const result = check({
+            user: user.flatten(),
+            events: events.map(e => e.flatten()),
+        }, rule)
+
+        await RuleEvaluation.query()
+            .insert({
+                rule_id: rule.id!,
+                user_id: user.id,
+                result,
+            })
+            .onConflict(['user_id', 'rule_id'])
+            .merge(['result'])
+
+        parts.push({
+            ...rule,
+            result,
+        })
+    }
+
+    const result = checkRules(user, rule, [...parts, ...userRules])
+
+    if (result) {
+        await UserList.query()
+            .insert({
+                list_id: list.id,
+                user_id: user.id,
+                version: list.version,
+            })
+            .onConflict(['user_id', 'list_id'])
+            .merge(['version'])
+    }
+}
+
 export const populateList = async (list: List) => {
     const { id, version: oldVersion = 0 } = list
     const version = oldVersion + 1
-    await updateListState(id, { state: 'loading', version })
+    list = await updateListState(id, { state: 'loading', version })
 
-    const scroll = User.scroll(q => q.where('project_id', list.project_id))
+    // Set the total in cache so we can start to calculate progress
+    const count = await User.count(q => q.where('project_id', list.project_id))
+    await cacheSet<number>(App.main.redis, CacheKeys.populationTotal(list), count, 86400)
 
-    // Collect matching user ids, insert in batches of 100
-    const userChunker = new Chunker<number>(async userIds => {
-        await UserList.query()
-            .insert(userIds.map(user_id => ({
-                list_id: list.id,
-                user_id,
+    const stream = User.query()
+        .where('project_id', list.project_id)
+        .stream()
+
+    // Enqueue batches of 100 jobs at a time for efficiency
+    const userChunker = new Chunker<ListEvaluateUserJob>(async jobs => {
+        await App.main.queue.enqueueBatch(jobs)
+    }, 100)
+
+    for await (const user of stream) {
+        await userChunker.add(
+            ListEvaluateUserJob.from({
+                listId: list.id,
+                userId: user.id,
+                projectId: list.project_id,
                 version,
-            })))
-            .onConflict(['user_id', 'list_id'])
-            .merge(['version'])
-    }, 100)
+                totalCount: count,
+            }),
+        )
+    }
 
-    // Collect rule evaluations, insert in batches of 100
-    const ruleChunker = new Chunker<Partial<RuleEvaluation>>(async items => {
-        await RuleEvaluation.query()
-            .insert(items.map(({ user_id, rule_id, result }) => ({
-                user_id,
-                rule_id,
-                result,
-            })))
-            .onConflict(['user_id', 'rule_id'])
-            .merge(['result'])
-    }, 100)
-
-    await scrollUserListForEvaluation({
-        list,
-        scroll,
-        handleRule: async ({ rule_id, user_id, result }) => {
-            await ruleChunker.add({ rule_id, user_id, result })
-        },
-        handleEntry: async (user, result) => {
-            if (result) await userChunker.add(user.id)
-        },
-    })
-
-    // Insert any remaining chunks
-    await ruleChunker.flush()
     await userChunker.flush()
+}
+
+export const populationProgress = async (list: List): Promise<ListProgress> => {
+    return {
+        complete: await cacheGet<number>(App.main.redis, CacheKeys.populationProgress(list)) ?? 0,
+        total: await cacheGet<number>(App.main.redis, CacheKeys.populationTotal(list)) ?? 0,
+    }
+}
+
+export const cleanupList = async ({ id, project_id, version }: List) => {
 
     // Once list is regenerated, drop any users from previous version
     await UserList.delete(qb => qb
         .where('version', '<', version)
-        .where('list_id', list.id))
+        .where('list_id', id))
 
     // Update list status to ready
     await updateListState(id, { state: 'ready' })
+
+    // Clear cache values
+    await cacheDel(App.main.redis, CacheKeys.populationTotal({ id, version }))
+
+    await ListStatsJob.from(id, project_id, true).queue()
 }
 
 export const refreshList = async (list: List, types: DateRuleTypes) => {
@@ -453,4 +510,38 @@ export const listUserCount = async (listId: number, since?: CountRange): Promise
 
 export const updateListState = async (id: number, params: Partial<Pick<List, 'state' | 'version' | 'users_count' | 'refreshed_at'>>) => {
     return await List.updateAndFetch(id, params)
+}
+
+export const duplicateList = async (list: List) => {
+    const params: Partial<List> = pick(list, ['project_id', 'name', 'type', 'rule_id', 'rule', 'is_visible'])
+    params.name = `Copy of ${params.name}`
+    params.state = 'draft'
+    let newList = await List.insertAndFetch(params)
+
+    if (list.rule_id) {
+        const clonedRuleId = await duplicateRule(list.rule_id, newList.project_id)
+        if (clonedRuleId) newList.rule_id = clonedRuleId
+
+        newList = await List.updateAndFetch(newList.id, { rule_id: clonedRuleId })
+
+        await ListPopulateJob.from(newList.id, newList.project_id).queue()
+
+        return newList
+    } else {
+        const chunker = new Chunker<Partial<UserList>>(async entries => {
+            await UserList.insert(entries)
+        }, 100)
+        const stream = UserList.query()
+            .where('list_id', list.id)
+            .stream()
+        for await (const row of stream) {
+            await chunker.add({
+                list_id: newList.id,
+                user_id: row.user_id,
+                event_id: row.event_id,
+            })
+        }
+        await chunker.flush()
+        return newList
+    }
 }
