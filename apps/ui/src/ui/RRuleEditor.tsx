@@ -3,7 +3,7 @@ import { ControlledProps } from '../types'
 import { Frequency, Options, RRule, Weekday } from 'rrule'
 import TextInput from './form/TextInput'
 import RadioInput from './form/RadioInput'
-import { format, parse } from 'date-fns'
+import { format, parse, add } from 'date-fns'
 import { FieldOption } from './form/Field'
 import { MultiOptionField } from './form/MultiOptionField'
 import Heading from './Heading'
@@ -110,7 +110,10 @@ export default function RRuleEditor({ label, onChange, value }: RRuleEditorProps
                 onBlur={(event) => {
                     const value = event.target.value
                     const date = parse(value, 'yyyy-MM-dd', new Date())
-                    setValues({ ...options, dtstart: value ? date : null })
+
+                    // KELINDI
+                    const overridenDate = add(date, { hours: 6 })
+                    setValues({ ...options, dtstart: value ? overridenDate : null })
                 }}
             />
             { options.freq !== 'once' && (
