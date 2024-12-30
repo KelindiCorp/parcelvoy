@@ -64,7 +64,9 @@ const operatorTypes: Record<RuleType, OperatorOption[]> = {
         ...baseOperators,
         { key: 'empty', label: 'is empty' },
         { key: 'contains', label: 'contains' },
+        { key: 'not contain', label: 'does not contain' },
         { key: 'starts with', label: 'starts with' },
+        { key: 'not start with', label: 'does not start with' },
     ],
     number: [
         ...baseOperators,
@@ -168,7 +170,7 @@ export function ruleDescription(preferences: Preferences, rule: Rule | GroupedRu
             </code>,
         )
 
-        nodes.push(' ' + operatorTypes[rule.type]?.find(ot => ot.key === rule.operator)?.label ?? rule.operator)
+        nodes.push(' ' + (operatorTypes[rule.type]?.find(ot => ot.key === rule.operator)?.label ?? rule.operator))
 
         if (rule.operator !== 'empty' && rule.operator !== 'is set' && rule.operator !== 'is not set') {
             nodes.push(' ')

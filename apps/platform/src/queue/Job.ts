@@ -6,9 +6,14 @@ interface JobOptions {
     jobId?: string
 }
 
+interface JobState {
+    attemptsMade: number
+}
+
 export interface EncodedJob {
     data: any
     options: JobOptions
+    state: JobState
     name: string
     token?: string
 }
@@ -16,11 +21,21 @@ export interface EncodedJob {
 export class JobError extends Error {}
 export class RetryError extends JobError {}
 
+export const JobPriority = {
+    none: 0,
+    high: 1,
+    low: 2,
+}
+
 export default class Job implements EncodedJob {
     data: any
     options: JobOptions = {
         delay: 0,
         attempts: 3,
+    }
+
+    state: JobState = {
+        attemptsMade: 0,
     }
 
     static $name: string = Job.constructor.name
