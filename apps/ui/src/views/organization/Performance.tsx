@@ -1,23 +1,77 @@
 import Heading from '../../ui/Heading'
-import { Chart, AxisOptions } from 'react-charts'
-import { useContext, useEffect, useMemo, useState } from 'react'
+import { useContext, useEffect, useState } from 'react'
 import api from '../../api'
-import { Metric } from '../../types'
-import { PreferencesContext } from '../../ui/PreferencesContext'
+import { Series } from '../../types'
 import Tile, { TileGrid } from '../../ui/Tile'
 import PageContent from '../../ui/PageContent'
 import { SingleSelect } from '../../ui/form/SingleSelect'
 import { DataTable, JsonPreview, Modal } from '../../ui'
 import { useSearchParams } from 'react-router-dom'
+import { CartesianGrid, Legend, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts'
+import { format } from 'date-fns'
+import './Performance.css'
+import { PreferencesContext } from '../../ui/PreferencesContext'
+import { formatDate } from '../../utils'
+import { useTranslation } from 'react-i18next'
 
-interface Series {
-    label: string
-    data: Metric[]
-    scaleType: string
+interface ChartProps {
+    series: Series[]
+    formatter?: (value: number) => string
+}
+const Chart = ({ series, formatter = (value) => value.toLocaleString() }: ChartProps) => {
+    const strokes = ['#3C82F6', '#12B981']
+    const [preferences] = useContext(PreferencesContext)
+    return (
+        <ResponsiveContainer width="100%" maxHeight={250} aspect={1}>
+            <LineChart
+                margin={{
+                    top: 5,
+                    left: 10,
+                    bottom: 5,
+                    right: 0,
+                }}
+            >
+                <XAxis dataKey="date"
+                    tickFormatter={date => format(date, 'h:mm aa')}
+                    type="number"
+                    domain = {['dataMin', 'dataMax']}
+                    tick={{ fontSize: 12 }}
+                    tickCount={15}
+                    tickMargin={8} />
+                <YAxis tick={{ fontSize: 12 }} tickFormatter={count => formatter(count) } />
+                <CartesianGrid vertical={false} />
+                <Tooltip
+                    contentStyle={{
+                        backgroundColor: 'var(--color-background)',
+                        border: '1px solid var(--color-grey)',
+                    }}
+                    labelFormatter={(date: number) => formatDate(preferences, date)}
+                    formatter={(value: any, name) => [`${name}: ${formatter(value)}`]}
+                />
+                <Legend />
+                {series.map((s, index) => (
+                    <Line
+                        type="monotone"
+                        dataKey="count"
+                        data={s.data}
+                        name={s.label}
+                        key={s.label}
+                        stroke={strokes[index]}
+                        dot={false}
+                    />
+                ))}
+            </LineChart>
+        </ResponsiveContainer>
+    )
+}
+
+interface JobPerformance {
+    throughput: Series[]
+    timing: Series[]
 }
 
 export default function Performance() {
-    const [preferences] = useContext(PreferencesContext)
+    const { t } = useTranslation()
     const [waiting, setWaiting] = useState(0)
 
     const [metrics, setMetrics] = useState<Series[] | undefined>()
@@ -27,7 +81,7 @@ export default function Performance() {
 
     const [jobs, setJobs] = useState<string[]>([])
     const [currentJob, setCurrentJob] = useState<string | undefined>(job)
-    const [jobMetrics, setJobMetrics] = useState<Series[] | undefined>()
+    const [jobMetrics, setJobMetrics] = useState<JobPerformance | undefined>()
 
     const [failed, setFailed] = useState<Array<Record<string, any>>>([])
     const [selectedFailed, setSelectedFailed] = useState<Record<string, any> | undefined>()
@@ -36,12 +90,11 @@ export default function Performance() {
         api.organizations.metrics()
             .then(({ waiting, data }) => {
                 const series: Series = {
-                    label: 'Count',
+                    label: t('completed'),
                     data: data.map(item => ({
-                        date: new Date(item.date),
+                        date: Date.parse(item.date as string),
                         count: item.count,
                     })),
-                    scaleType: 'time',
                 }
                 setMetrics([series])
                 setWaiting(waiting)
@@ -64,16 +117,11 @@ export default function Performance() {
 
     useEffect(() => {
         currentJob && api.organizations.jobPerformance(currentJob)
-            .then((metrics) => {
-                const series: Series = {
-                    label: 'Count',
-                    data: metrics.map(item => ({
-                        date: new Date(item.date),
-                        count: item.count,
-                    })),
-                    scaleType: 'time',
-                }
-                setJobMetrics([series])
+            .then((series) => {
+                setJobMetrics({
+                    throughput: series.throughput.map(({ data, label }) => ({ data, label: t(label) })),
+                    timing: series.timing.map(({ data, label }) => ({ data, label: t(label) })),
+                })
             })
             .catch(() => {})
     }, [currentJob])
@@ -86,46 +134,21 @@ export default function Performance() {
         }
     }
 
-    const primaryAxis = useMemo(
-        (): AxisOptions<Metric> => ({
-            getValue: datum => datum.date,
-        }),
-        [],
-    )
-    const secondaryAxes = useMemo(
-        (): Array<AxisOptions<Metric>> => [{
-            getValue: datum => datum.count,
-            elementType: 'line',
-        }],
-        [],
-    )
-
     return (
         <PageContent
             title="Performance"
             desc="View queue throughput for your project."
         >
-            <Heading size="h4" title="Queue Throughput" />
-            {metrics && <div >
+            <Heading size="h3" title="Queue" />
+            <Heading size="h4" title="Throughput" />
+            {metrics && <div>
                 <TileGrid numColumns={4}>
                     <Tile title={waiting.toLocaleString()} size="large">In Queue</Tile>
                 </TileGrid>
-                <div style={{ position: 'relative', minHeight: '200px' }}>
-                    <Chart
-                        options={{
-                            data: metrics,
-                            primaryAxis,
-                            secondaryAxes,
-                            initialWidth: 500,
-                            initialHeight: 200,
-                            tooltip: false,
-                            dark: preferences.mode === 'dark',
-                        }}
-                    />
-                </div>
+                <Chart series={metrics} />
             </div>}
             <br /><br />
-            <Heading size="h4" title="Jobs" actions={
+            <Heading size="h3" title="Individual Job" actions={
                 <SingleSelect
                     size="small"
                     options={jobs}
@@ -133,22 +156,20 @@ export default function Performance() {
                     onChange={handleChangeJob}
                 />
             } />
-            {jobMetrics && <div style={{ position: 'relative', minHeight: '200px' }}>
-                <Chart
-                    options={{
-                        data: jobMetrics,
-                        primaryAxis,
-                        secondaryAxes,
-                        initialWidth: 500,
-                        initialHeight: 200,
-                        tooltip: false,
-                        dark: preferences.mode === 'dark',
-                    }}
-                />
-            </div>}
+            {jobMetrics && (
+                <>
+                    <Heading size="h4" title="Throughput" />
+                    <Chart series={jobMetrics.throughput} />
+                    <Heading size="h4" title="Timing" />
+                    <Chart
+                        series={jobMetrics.timing}
+                        formatter={(value) => `${value.toLocaleString()}ms`}
+                    />
+                </>
+            )}
 
             {failed.length && <>
-                <Heading size="h4" title="Failed" />
+                <Heading size="h4" title="Failed Jobs" />
                 <div className="failed">
                     <DataTable items={failed} columns={[
                         { key: 'id', title: 'ID' },
