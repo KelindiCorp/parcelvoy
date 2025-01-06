@@ -127,10 +127,7 @@ export default function RRuleEditor({ label, onChange, value }: RRuleEditorProps
                         onBlur={(event) => {
                             const value = event.target.value
                             const date = parse(value, 'yyyy-MM-dd', new Date())
-
-                            // KELINDI
-                            const overridenDate = add(date, { hours: 6 })
-                            setValues({ ...options, until: value ? overridenDate : null })
+                            setValues({ ...options, until: value ? date : null })
                         }}
                     />
                     <TextInput
